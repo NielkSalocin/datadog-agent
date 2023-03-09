@@ -43,7 +43,6 @@ import (
 
 const defaultTimeout = 10 * time.Second
 
-var noResult = &struct{}{}
 var errIsDir = errors.New("is directory")
 
 // TODO(jinroh): deprecate this process.flag builtin kept for
@@ -144,14 +143,14 @@ func (r *defaultResolver) ResolveInputs(ctx context.Context, rule *Rule) (Resolv
 	resolved := make(map[string]interface{})
 
 	if rule.HasScope(DockerScope) {
-		if _, err := r.getDockerCl(ctx); err != nil {
-			return nil, err
+		if r.opts.DockerProvider == nil {
+			return nil, ErrIncompatibleEnvironment
 		}
 	}
 
 	if rule.HasScope(KubernetesClusterScope) || rule.HasScope(KubernetesNodeScope) {
-		if _, err := r.getKubernetesCl(ctx); err != nil {
-			return nil, err
+		if r.opts.KubernetesProvider == nil {
+			return nil, ErrIncompatibleEnvironment
 		}
 	}
 
@@ -177,8 +176,11 @@ func (r *defaultResolver) ResolveInputs(ctx context.Context, rule *Rule) (Resolv
 			} else {
 				result, err = r.resolveFilePath(ctx, "", path, spec.File.Parser)
 			}
-			if os.IsPermission(err) || os.IsNotExist(err) || errors.Is(err, errIsDir) {
-				result, err = noResult, nil
+			if errors.Is(err, os.ErrPermission) ||
+				errors.Is(err, os.ErrNotExist) ||
+				errors.Is(err, os.ErrClosed) ||
+				errors.Is(err, errIsDir) {
+				result, err = nil, nil
 			}
 
 		case spec.Process != nil:
@@ -218,21 +220,23 @@ func (r *defaultResolver) ResolveInputs(ctx context.Context, rule *Rule) (Resolv
 		if err != nil {
 			return nil, fmt.Errorf("could not resolve input spec %s(tagged=%q): %w", resultType, tagName, err)
 		}
-		if result == nil {
-			return nil, fmt.Errorf("resolving lead to nil or empty input spec %s(tagged=%q): %w", resultType, tagName, err)
-		}
 		if _, ok := resolved[tagName]; ok {
 			return nil, fmt.Errorf("input with tag %q already set", tagName)
 		}
 		if _, ok := context.InputSpecs[tagName]; ok {
 			return nil, fmt.Errorf("input with tag %q already set", tagName)
 		}
+
 		context.InputSpecs[tagName] = spec
-		if result != noResult {
-			resolved[tagName] = result
-		}
 		if kubernetesCluster != "" {
 			context.KubernetesCluster = kubernetesCluster
+		}
+
+		if r, ok := result.([]interface{}); ok && len(r) == 0 {
+			result = nil
+		}
+		if result != nil {
+			resolved[tagName] = result
 		}
 
 		if statsdClient := r.opts.StatsdClient; statsdClient != nil && resultType != "constants" {
@@ -406,11 +410,8 @@ func (r *defaultResolver) resolveFileGlob(ctx context.Context, glob, parser stri
 	var resolved []interface{}
 	for _, path := range paths {
 		file, err := r.resolveFilePath(ctx, glob, path, parser)
-		if os.IsNotExist(err) {
-			continue
-		}
 		if err != nil {
-			return nil, err
+			continue
 		}
 		resolved = append(resolved, file)
 	}
@@ -444,9 +445,6 @@ func (r *defaultResolver) resolveProcess(ctx context.Context, name string, filte
 			"flags":   parseCmdLineFlags(cmdLine),
 			"envs":    parseEnvironMap(envs, filteredEnvs),
 		})
-	}
-	if len(resolved) == 0 {
-		return noResult, nil
 	}
 	return resolved, nil
 }
@@ -493,7 +491,7 @@ func (r *defaultResolver) resolveGroup(ctx context.Context, name string) (interf
 			"id":    gid,
 		}, nil
 	}
-	return noResult, nil
+	return nil, nil
 }
 
 func (r *defaultResolver) resolveAudit(ctx context.Context, path string) (interface{}, error) {
@@ -718,7 +716,7 @@ func (r *defaultResolver) resolveKubeApiserver(ctx context.Context, opts *InputS
 		items = list.Items
 	}
 
-	resolved := make([]interface{}, 0, len(items))
+	var resolved []interface{}
 	for _, resource := range items {
 		resolved = append(resolved, map[string]interface{}{
 			"kind":      resource.GetObjectKind().GroupVersionKind().Kind,
@@ -739,9 +737,12 @@ func (r *defaultResolver) getDockerCl(ctx context.Context) (docker.CommonAPIClie
 	if r.dockerCl == nil {
 		cl, err := r.opts.DockerProvider(ctx)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("docker client is not configured: %w", err)
 		}
 		r.dockerCl = cl
+	}
+	if r.dockerCl == nil {
+		return nil, fmt.Errorf("docker client is not configured")
 	}
 	return r.dockerCl, nil
 }
@@ -753,9 +754,12 @@ func (r *defaultResolver) getKubernetesCl(ctx context.Context) (dynamic.Interfac
 	if r.kubernetesCl == nil {
 		cl, err := r.opts.KubernetesProvider(ctx)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("kubernetes client is not configured: %w", err)
 		}
 		r.kubernetesCl = cl
+	}
+	if r.kubernetesCl == nil {
+		return nil, fmt.Errorf("kubernetes client is not configured")
 	}
 	return r.kubernetesCl, nil
 }

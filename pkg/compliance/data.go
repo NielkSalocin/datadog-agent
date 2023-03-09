@@ -65,8 +65,7 @@ type CheckEvent struct {
 	Tags         []string               `json:"tags"`
 	Data         map[string]interface{} `json:"data,omitempty"`
 
-	errReason       error           `json:"-"`
-	resolverOutcome ResolverOutcome `json:"-"`
+	errReason error `json:"-"`
 }
 
 func (e *CheckEvent) String() string {
@@ -206,7 +205,7 @@ type InputSpecKubernetes struct {
 
 type ResolverOutcome map[string]interface{}
 
-func NewCheckError(evaluator Evaluator, rule *Rule, benchmark *Benchmark, resolverOutcome ResolverOutcome, errReason error) *CheckEvent {
+func NewCheckError(evaluator Evaluator, rule *Rule, benchmark *Benchmark, errReason error) *CheckEvent {
 	expireAt := time.Now().Add(1 * time.Hour).UTC().Truncate(1 * time.Second)
 	return &CheckEvent{
 		AgentVersion: version.AgentVersion,
@@ -217,8 +216,7 @@ func NewCheckError(evaluator Evaluator, rule *Rule, benchmark *Benchmark, resolv
 		Result:       CheckError,
 		Data:         map[string]interface{}{"error": errReason.Error()},
 
-		errReason:       errReason,
-		resolverOutcome: resolverOutcome,
+		errReason: errReason,
 	}
 }
 
@@ -230,7 +228,6 @@ func NewCheckEvent(
 	resourceType string,
 	rule *Rule,
 	benchmark *Benchmark,
-	resolverOutcome ResolverOutcome,
 ) *CheckEvent {
 	expireAt := time.Now().Add(1 * time.Hour).UTC().Truncate(1 * time.Second)
 	return &CheckEvent{
@@ -243,8 +240,6 @@ func NewCheckEvent(
 		Evaluator:    evaluator,
 		Result:       result,
 		Data:         data,
-
-		resolverOutcome: resolverOutcome,
 	}
 }
 

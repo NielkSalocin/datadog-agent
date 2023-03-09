@@ -56,7 +56,7 @@ func (rr *RegoRunner) RunBenchmark(ctx context.Context, stream chan<- *CheckEven
 		}
 		if err != nil {
 			errReason := fmt.Errorf("input resolution error for rule=%s: %w", rule.ID, err)
-			rr.sendEvents(ctx, stream, NewCheckError(RegoEvaluator, rule, rr.benchmark, resolverOutcome, errReason))
+			rr.sendEvents(ctx, stream, NewCheckError(RegoEvaluator, rule, rr.benchmark, errReason))
 			continue
 		}
 
@@ -64,7 +64,7 @@ func (rr *RegoRunner) RunBenchmark(ctx context.Context, stream chan<- *CheckEven
 		events, err := rr.runRegoEvaluation(ctx, rule, resolverOutcome)
 		if err != nil {
 			errReason := fmt.Errorf("rego rule evaluation error for rule=%s: %w", rule.ID, err)
-			rr.sendEvents(ctx, stream, NewCheckError(RegoEvaluator, rule, rr.benchmark, resolverOutcome, errReason))
+			rr.sendEvents(ctx, stream, NewCheckError(RegoEvaluator, rule, rr.benchmark, errReason))
 			continue
 		}
 
@@ -134,7 +134,7 @@ func (rr *RegoRunner) runRegoEvaluation(ctx context.Context, rule *Rule, resolve
 func newCheckEventFromRegoResult(data interface{}, rule *Rule, resolverOutcome ResolverOutcome, benchmark *Benchmark) *CheckEvent {
 	m, ok := data.(map[string]interface{})
 	if !ok || m == nil {
-		return NewCheckError(RegoEvaluator, rule, benchmark, resolverOutcome, fmt.Errorf("failed to cast event"))
+		return NewCheckError(RegoEvaluator, rule, benchmark, fmt.Errorf("failed to cast event"))
 	}
 	var result CheckResult
 	var errReason error
@@ -155,13 +155,13 @@ func newCheckEventFromRegoResult(data interface{}, rule *Rule, resolverOutcome R
 		errReason = fmt.Errorf("rego result invalid: bad status %q", status)
 	}
 	if errReason != nil {
-		return NewCheckError(RegoEvaluator, rule, benchmark, resolverOutcome, errReason)
+		return NewCheckError(RegoEvaluator, rule, benchmark, errReason)
 	}
 	eventData, _ := m["data"].(map[string]interface{})
 	resourceID, _ := m["resource_id"].(string)
 	resourceType, _ := m["resource_type"].(string)
 	return NewCheckEvent(
-		RegoEvaluator, result, eventData, resourceID, resourceType, rule, benchmark, resolverOutcome,
+		RegoEvaluator, result, eventData, resourceID, resourceType, rule, benchmark,
 	)
 }
 
