@@ -126,6 +126,12 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 				SysprobeConfigParams: sysprobeconfig.NewParams(sysprobeconfig.WithSysProbeConfFilePath(globalParams.SysProbeConfFilePath)),
 				LogParams:            log.LogForDaemon("CORE", "log_file", common.DefaultLogFile),
 			}),
+			fx.Supply(flare.NewParams(
+				common.GetDistPath(),
+				common.PyChecksPath,
+				common.DefaultLogFile,
+				common.DefaultJmxLogFile,
+			)),
 			flare.Module,
 			core.Bundle,
 			fx.Supply(dogstatsdServer.Params{
@@ -235,6 +241,12 @@ func StartAgentWithDefaults() (dogstatsdServer.Component, error) {
 			SysprobeConfigParams: sysprobeconfig.NewParams(),
 			LogParams:            log.LogForDaemon("CORE", "log_file", common.DefaultLogFile),
 		}),
+		fx.Supply(flare.NewParams(
+			common.GetDistPath(),
+			common.PyChecksPath,
+			common.DefaultLogFile,
+			common.DefaultJmxLogFile,
+		)),
 		flare.Module,
 		core.Bundle,
 		fx.Supply(dogstatsdServer.Params{
@@ -406,7 +418,7 @@ func startAgent(
 	guiPort := pkgconfig.Datadog.GetString("GUI_port")
 	if guiPort == "-1" {
 		pkglog.Infof("GUI server port -1 specified: not starting the GUI.")
-	} else if err = gui.StartGUIServer(guiPort); err != nil {
+	} else if err = gui.StartGUIServer(guiPort, flare); err != nil {
 		pkglog.Errorf("Error while starting GUI: %v", err)
 	}
 

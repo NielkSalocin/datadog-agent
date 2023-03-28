@@ -88,6 +88,12 @@ func MakeCommand() *cobra.Command {
 				}),
 				core.Bundle,
 				// flare
+				fx.Supply(flare.NewParams(
+					common.GetDistPath(),
+					common.PyChecksPath,
+					common.DefaultLogFile,
+					common.DefaultJmxLogFile,
+				)),
 				flare.Module,
 				// systray
 				fx.Supply(systrayParams),
