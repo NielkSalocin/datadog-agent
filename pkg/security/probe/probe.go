@@ -330,7 +330,7 @@ func (p *Probe) setManagerOptions() error {
 		},
 		manager.ConstantEditor{
 			Name:  "cgroup_activity_dumps_enabled",
-			Value: utils.BoolTouint64(config.RuntimeSecurity.ActivityDumpEnabled && areCGroupADsEnabled),
+			Value: utils.BoolTouint64(p.Config.RuntimeSecurity.ActivityDumpEnabled && areCGroupADsEnabled),
 		},
 		manager.ConstantEditor{
 			Name:  "net_struct_type",
@@ -338,7 +338,7 @@ func (p *Probe) setManagerOptions() error {
 		},
 		manager.ConstantEditor{
 			Name:  "syscall_monitor_event_period",
-			Value: uint64(config.RuntimeSecurity.ActivityDumpSyscallMonitorPeriod.Nanoseconds()),
+			Value: uint64(p.Config.RuntimeSecurity.ActivityDumpSyscallMonitorPeriod.Nanoseconds()),
 		},
 		manager.ConstantEditor{
 			Name:  "send_signal",
