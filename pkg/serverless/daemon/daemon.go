@@ -97,6 +97,9 @@ type Daemon struct {
 	InvocationProcessor invocationlifecycle.InvocationProcessor
 
 	logCollector *serverlessLog.LambdaLogsCollector
+
+	// layer TODO
+	layer tracingLayerDetector
 }
 
 // StartDaemon starts an HTTP server to receive messages from the runtime and coordinate
@@ -120,10 +123,10 @@ func StartDaemon(addr string) *Daemon {
 		logsFlushMutex:    sync.Mutex{},
 	}
 
-	mux.Handle("/lambda/hello", &Hello{daemon})
+	mux.Handle("/lambda/hello", daemon.layer.markLayerWrapper(&Hello{daemon}))
 	mux.Handle("/lambda/flush", &Flush{daemon})
-	mux.Handle("/lambda/start-invocation", &StartInvocation{daemon})
-	mux.Handle("/lambda/end-invocation", &EndInvocation{daemon})
+	mux.Handle("/lambda/start-invocation", daemon.layer.markLayerWrapper(&StartInvocation{daemon}))
+	mux.Handle("/lambda/end-invocation", daemon.layer.markLayerWrapper(&EndInvocation{daemon}))
 	mux.Handle("/trace-context", &TraceContext{daemon})
 
 	// start the HTTP server used to communicate with the runtime and the Lambda platform
