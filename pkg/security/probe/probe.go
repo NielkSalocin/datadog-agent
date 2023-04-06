@@ -1005,8 +1005,7 @@ func (p *Probe) validEventTypeForConfig(eventType string) bool {
 	return true
 }
 
-// updateProbes applies the loaded set of rules and returns a report
-// of the applied approvers for it.
+// updateProbes applies the loaded set of rules and returns a report of the applied approvers for it. TODO(Celia): I don't think it returns a report of approvers anymore
 func (p *Probe) updateProbes(ruleEventTypes []eval.EventType) error {
 	// event types enabled either by event handlers or by rules
 	eventTypes := append([]eval.EventType{}, defaultEventTypes...)
@@ -1195,8 +1194,8 @@ func (p *Probe) GetDebugStats() map[string]interface{} {
 	return debug
 }
 
-// NewRuleSet returns a new rule set
-func (p *Probe) NewRuleSet(eventTypeEnabled map[eval.EventType]bool) *rules.RuleSet {
+// EvaluationSet returns a new evaluation set
+func (p *Probe) EvaluationSet(eventTypeEnabled map[eval.EventType]bool) *rules.EvaluationSet {
 	ruleOpts, evalOpts := rules.NewEvalOpts(eventTypeEnabled)
 
 	ruleOpts.WithLogger(seclog.DefaultLogger)
@@ -1209,7 +1208,10 @@ func (p *Probe) NewRuleSet(eventTypeEnabled map[eval.EventType]bool) *rules.Rule
 		}
 	}
 
-	return rules.NewRuleSet(NewModel(p), eventCtor, ruleOpts, evalOpts)
+	defaultRuleSet := rules.NewRuleSet(NewModel(p), eventCtor, ruleOpts, evalOpts)
+	threatScoreRuleSet := rules.NewRuleSet(NewModel(p), eventCtor, ruleOpts, evalOpts)
+
+	return rules.NewEvaluationSet(defaultRuleSet, threatScoreRuleSet)
 }
 
 // QueuedNetworkDeviceError is used to indicate that the new network device was queued until its namespace handle is
@@ -1311,7 +1313,7 @@ func (p *Probe) applyDefaultFilterPolicies() {
 }
 
 // ApplyRuleSet setup the filters for the provided set of rules and returns the policy report.
-func (p *Probe) ApplyRuleSet(rs *rules.RuleSet) (*kfilters.ApplyRuleSetReport, error) {
+func (p *Probe) ApplyRuleSet(rs *rules.RuleSet, isThreatScore bool) (*kfilters.ApplyRuleSetReport, error) {
 	ars, err := kfilters.NewApplyRuleSetReport(p.Config.Probe, rs)
 	if err != nil {
 		return nil, err
