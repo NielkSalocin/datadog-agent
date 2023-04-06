@@ -59,13 +59,13 @@ func (r *RCProfileProvider) rcProfilesUpdateCallback(configs map[string]state.Co
 		for _, config := range configs {
 			var profCfg ProfileConfig
 			if err := json.Unmarshal(config.Config, &profCfg); err != nil {
-				log.Errorf("couldn't decode json profile: %w", err)
+				log.Errorf("couldn't decode json profile: %s", err)
 				return
 			}
 
 			profile := &proto.SecurityProfile{}
 			if err = profile.UnmarshalVT([]byte(profCfg.Profile)); err != nil {
-				log.Errorf("couldn't decode protobuf profile: %w", err)
+				log.Errorf("couldn't decode protobuf profile: %s", err)
 				return
 			}
 
@@ -94,7 +94,7 @@ func (r *RCProfileProvider) Start(ctx context.Context) error {
 
 	go func() {
 		<-ctx.Done()
-		r.Stop()
+		_ = r.Stop()
 	}()
 
 	// set the first tag
