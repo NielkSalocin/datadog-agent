@@ -62,6 +62,9 @@ type Client struct {
 	clusterName string
 	clusterID   string
 
+	getClusterName func() string
+	getClusterID   func() string
+
 	pollInterval      time.Duration
 	lastUpdateError   error
 	backoffPolicy     backoff.Policy
@@ -386,18 +389,12 @@ func (c *Client) applyUpdate(pbUpdate *pbgo.ClientGetConfigsResponse) ([]string,
 	return c.state.Update(update)
 }
 
-func (c *Client) UpdateClusterName(name string) {
-	c.m.Lock()
-	defer c.m.Unlock()
-
-	c.clusterName = name
+func (c *Client) SetGetClusterName(fnc func() string) {
+	c.getClusterName = fnc
 }
 
-func (c *Client) UpdateClusterID(id string) {
-	c.m.Lock()
-	defer c.m.Unlock()
-
-	c.clusterID = id
+func (c *Client) SetGetClusterID(fnc func() string) {
+	c.getClusterID = fnc
 }
 
 // newUpdateRequests builds a new request for the agent based on the current state of the
@@ -439,10 +436,15 @@ func (c *Client) newUpdateRequest() (*pbgo.ClientGetConfigsRequest, error) {
 		})
 	}
 
-	c.m.Lock()
 	clusterName := c.clusterName
+	if c.getClusterName != nil {
+		clusterName = c.getClusterName()
+	}
+
 	clusterID := c.clusterID
-	c.m.Unlock()
+	if c.getClusterID != nil {
+		clusterID = c.getClusterID()
+	}
 
 	req := &pbgo.ClientGetConfigsRequest{
 		Client: &pbgo.Client{

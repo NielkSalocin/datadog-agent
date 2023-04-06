@@ -12,7 +12,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"sync"
 
 	proto "github.com/DataDog/agent-payload/v5/cws/dumpsv1"
@@ -33,8 +32,11 @@ type ProfileConfig struct {
 type RCProfileProvider struct {
 	sync.RWMutex
 
-	client   *remote.Client
-	tagQueue []string
+	client *remote.Client
+
+	// tag queue
+	tags    []string
+	nextTag int
 
 	onNewProfileCallback func(selector cgroupModel.WorkloadSelector, profile *proto.SecurityProfile)
 }
@@ -46,16 +48,10 @@ func (r *RCProfileProvider) Stop() error {
 }
 
 func (r *RCProfileProvider) rcProfilesUpdateCallback(configs map[string]state.ConfigCWSProfiles) {
-	log.Info("new profiles from remote-config policy provider")
+	log.Info("new profiles from remote-config policy provider: %v", r.tags)
 
 	// move to the next tag
-	if len(r.tagQueue) > 0 {
-		selector, err := tagToSelector(r.tagQueue[0])
-		if err != nil {
-			log.Error(err)
-			return
-		}
-
+	if len(r.tags) > 0 {
 		for _, config := range configs {
 			var profCfg ProfileConfig
 			if err := json.Unmarshal(config.Config, &profCfg); err != nil {
@@ -64,23 +60,33 @@ func (r *RCProfileProvider) rcProfilesUpdateCallback(configs map[string]state.Co
 			}
 
 			profile := &proto.SecurityProfile{}
-			if err = profile.UnmarshalVT([]byte(profCfg.Profile)); err != nil {
+			if err := profile.UnmarshalVT([]byte(profCfg.Profile)); err != nil {
 				log.Errorf("couldn't decode protobuf profile: %s", err)
 				return
+			}
+
+			imageName := utils.GetTagValue("image_name", profile.Tags)
+			imageTag := utils.GetTagValue("image_tag", profile.Tags)
+
+			if imageName == "" {
+				log.Errorf("no image tag: %v", profile.Tags)
+				return
+			}
+
+			if imageTag == "" {
+				imageTag = "latest"
 			}
 
 			if len(utils.GetTagValue("image_tag", profile.Tags)) == 0 {
 				profile.Tags = append(profile.Tags, "image_tag:latest")
 			}
 
+			selector := cgroupModel.NewWorkloadSelector(imageName, imageTag)
+
+			log.Tracef("got a new profile for %v : %v", selector, profile)
+
 			r.onNewProfileCallback(selector, profile)
 		}
-
-		r.tagQueue = r.tagQueue[1:]
-	}
-
-	if len(r.tagQueue) > 0 {
-		r.client.UpdateClusterName(r.tagQueue[0])
 	}
 }
 
@@ -97,11 +103,6 @@ func (r *RCProfileProvider) Start(ctx context.Context) error {
 		_ = r.Stop()
 	}()
 
-	// set the first tag
-	if len(r.tagQueue) > 0 {
-		r.client.UpdateClusterName(r.tagQueue[0])
-	}
-
 	return nil
 }
 
@@ -109,45 +110,36 @@ func selectorToTag(selector *cgroupModel.WorkloadSelector) string {
 	return selector.Image + ":::" + selector.Tag
 }
 
-func tagToSelector(tag string) (cgroupModel.WorkloadSelector, error) {
-	var selector cgroupModel.WorkloadSelector
-
-	els := strings.Split(tag, ":::")
-	if len(els) != 2 {
-		return selector, fmt.Errorf("tag format incorrect: %s", tag)
-	}
-	return cgroupModel.NewWorkloadSelector(els[0], els[1]), nil
-}
-
 // UpdateWorkloadSelectors updates the selectors used to query profiles
 func (r *RCProfileProvider) UpdateWorkloadSelectors(selectors []cgroupModel.WorkloadSelector) {
 	r.Lock()
 	defer r.Unlock()
 
+	log.Tracef("updating workload selector: %v", selectors)
+
+	var newTags []string
+
 	for _, selector := range selectors {
-		candidate := selectorToTag(&selector)
-
-		var present bool
-		for _, tag := range r.tagQueue {
-			if candidate == tag {
-				present = true
-				break
-			}
-		}
-
-		if !present {
-			r.tagQueue = append(r.tagQueue, candidate)
-		}
+		newTags = append(newTags, selectorToTag(&selector))
 	}
-
-	if len(r.tagQueue) == 1 {
-		r.client.UpdateClusterName(r.tagQueue[0])
-	}
+	r.tags = newTags
+	r.nextTag = 0
 }
 
 // SetOnNewProfileCallback sets the onNewProfileCallback function
 func (r *RCProfileProvider) SetOnNewProfileCallback(onNewProfileCallback func(selector cgroupModel.WorkloadSelector, profile *proto.SecurityProfile)) {
 	r.onNewProfileCallback = onNewProfileCallback
+}
+
+func (r *RCProfileProvider) nextClusterName() string {
+	name := r.tags[r.nextTag]
+
+	r.nextTag++
+	if r.nextTag >= len(r.tags) {
+		r.nextTag = 0
+	}
+
+	return name
 }
 
 // NewRCPolicyProvider returns a new Remote Config based policy provider
@@ -165,6 +157,7 @@ func NewRCProfileProvider() (*RCProfileProvider, error) {
 	r := &RCProfileProvider{
 		client: c,
 	}
+	c.SetGetClusterName(r.nextClusterName)
 
 	return r, nil
 }
