@@ -69,7 +69,7 @@ func NewSecurityProfileManager(config *config.Config, statsdClient statsd.Client
 	}
 
 	// instantiate remote-config provider
-	if config.RuntimeSecurity.RemoteConfigurationEnabled {
+	if config.RuntimeSecurity.RemoteConfigurationEnabled && config.RuntimeSecurity.SecurityProfileRCEnabled {
 		rcProvider, err := rconfig.NewRCProfileProvider()
 		if err != nil {
 			return nil, fmt.Errorf("couldn't instantiate a new security profile remote-config provider: %w", err)
