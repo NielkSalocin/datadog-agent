@@ -48,7 +48,7 @@ func (r *RCProfileProvider) Stop() error {
 }
 
 func (r *RCProfileProvider) rcProfilesUpdateCallback(configs map[string]state.ConfigCWSProfiles) {
-	log.Info("new profiles from remote-config policy provider: %v", r.tags)
+	log.Infof("new profiles from remote-config policy provider: %v", r.tags)
 
 	// move to the next tag
 	if len(r.tags) > 0 {

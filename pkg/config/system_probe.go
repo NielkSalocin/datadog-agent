@@ -294,11 +294,11 @@ func InitSystemProbeConfig(cfg Config) {
 
 	// CWS - Security Profiles
 	cfg.BindEnvAndSetDefault("runtime_security_config.security_profile.enabled", true)
-	cfg.BindEnvAndSetDefault("runtime_security_config.security_profile.dir", DefaultSecurityProfilesDir)
-	cfg.BindEnvAndSetDefault("runtime_security_config.security_profile.watch_dir", false)
+	cfg.BindEnvAndSetDefault("runtime_security_config.security_profile.dir", "")
+	cfg.BindEnvAndSetDefault("runtime_security_config.security_profile.watch_dir", true)
 	cfg.BindEnvAndSetDefault("runtime_security_config.security_profile.cache_size", 10)
 	cfg.BindEnvAndSetDefault("runtime_security_config.security_profile.max_count", 400)
-	cfg.BindEnvAndSetDefault("runtime_security_config.security_profile.remote_configuration.enabled", false)
+	cfg.BindEnvAndSetDefault("runtime_security_config.security_profile.remote_configuration.enabled", true)
 }
 
 func join(pieces ...string) string {
