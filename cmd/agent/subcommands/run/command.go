@@ -47,6 +47,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/embed/jmx"
 	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
 	remoteconfig "github.com/DataDog/datadog-agent/pkg/config/remote/service"
+	"github.com/DataDog/datadog-agent/pkg/config/utils"
 	"github.com/DataDog/datadog-agent/pkg/forwarder"
 	"github.com/DataDog/datadog-agent/pkg/logs"
 	"github.com/DataDog/datadog-agent/pkg/metadata"
@@ -410,7 +411,7 @@ func startAgent(
 	}
 
 	// setup the forwarder
-	keysPerDomain, err := pkgconfig.GetMultipleEndpoints()
+	keysPerDomain, err := utils.GetMultipleEndpoints(pkgconfig.Datadog)
 	if err != nil {
 		pkglog.Error("Misconfiguration of agent endpoints: ", err)
 	}

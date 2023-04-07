@@ -42,6 +42,7 @@ import (
 	remoteconfig "github.com/DataDog/datadog-agent/pkg/config/remote/service"
 	"github.com/DataDog/datadog-agent/pkg/config/resolver"
 	commonsettings "github.com/DataDog/datadog-agent/pkg/config/settings"
+	"github.com/DataDog/datadog-agent/pkg/config/utils"
 	"github.com/DataDog/datadog-agent/pkg/forwarder"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
 	"github.com/DataDog/datadog-agent/pkg/telemetry"
@@ -178,7 +179,7 @@ func start(log log.Component, config config.Component, cliParams *command.Global
 	pkglog.Infof("Hostname is: %s", hname)
 
 	// setup the forwarder
-	keysPerDomain, err := pkgconfig.GetMultipleEndpoints()
+	keysPerDomain, err := utils.GetMultipleEndpoints(pkgconfig.Datadog)
 	if err != nil {
 		pkglog.Error("Misconfiguration of agent endpoints: ", err)
 	}
