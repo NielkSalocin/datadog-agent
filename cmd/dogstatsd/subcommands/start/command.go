@@ -23,6 +23,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/aggregator"
 	"github.com/DataDog/datadog-agent/pkg/api/healthprobe"
 	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-agent/pkg/config/utils"
 	"github.com/DataDog/datadog-agent/pkg/forwarder"
 	"github.com/DataDog/datadog-agent/pkg/metadata"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
@@ -188,7 +189,7 @@ func RunAgent(ctx context.Context, cliParams *CLIParams, config config.Component
 	}
 
 	// setup the demultiplexer
-	keysPerDomain, err := pkgconfig.GetMultipleEndpoints()
+	keysPerDomain, err := utils.GetMultipleEndpoints(pkgconfig.Datadog)
 	if err != nil {
 		log.Error("Misconfiguration of agent endpoints: ", err)
 	}

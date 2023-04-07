@@ -18,6 +18,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/config/resolver"
+	"github.com/DataDog/datadog-agent/pkg/config/utils"
 	"github.com/DataDog/datadog-agent/pkg/forwarder/endpoints"
 	"github.com/DataDog/datadog-agent/pkg/forwarder/internal/retry"
 	"github.com/DataDog/datadog-agent/pkg/forwarder/transaction"
@@ -124,9 +125,9 @@ func NewOptions(keysPerDomain map[string][]string) *Options {
 	if err != nil {
 		log.Error("Misconfiguration of agent observability_pipelines_worker endpoint for metrics: ", err)
 	}
-	if r, ok := resolvers[config.GetMainInfraEndpoint()]; ok && vectorMetricsURL != "" {
+	if r, ok := resolvers[utils.GetInfraEndpoint(config.Datadog)]; ok && vectorMetricsURL != "" {
 		log.Debugf("Configuring forwarder to send metrics to observability_pipelines_worker: %s", vectorMetricsURL)
-		resolvers[config.GetMainInfraEndpoint()] = resolver.NewDomainResolverWithMetricToVector(
+		resolvers[utils.GetInfraEndpoint(config.Datadog)] = resolver.NewDomainResolverWithMetricToVector(
 			r.GetBaseDomain(),
 			r.GetAPIKeys(),
 			vectorMetricsURL,

@@ -35,6 +35,7 @@ import (
 	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/config/resolver"
 	"github.com/DataDog/datadog-agent/pkg/config/settings"
+	"github.com/DataDog/datadog-agent/pkg/config/utils"
 	"github.com/DataDog/datadog-agent/pkg/forwarder"
 	"github.com/DataDog/datadog-agent/pkg/pidfile"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
@@ -209,7 +210,7 @@ func RunAgent(ctx context.Context, log log.Component, config config.Component, p
 	log.Infof("Hostname is: %s", hostnameDetected)
 
 	// setup the forwarder
-	keysPerDomain, err := pkgconfig.GetMultipleEndpoints()
+	keysPerDomain, err := utils.GetMultipleEndpoints(pkgconfig.Datadog)
 	if err != nil {
 		log.Error("Misconfiguration of agent endpoints: ", err)
 	}

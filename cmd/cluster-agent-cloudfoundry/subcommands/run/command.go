@@ -26,6 +26,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/collector"
 	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/config/resolver"
+	"github.com/DataDog/datadog-agent/pkg/config/utils"
 	"github.com/DataDog/datadog-agent/pkg/forwarder"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
 	"github.com/DataDog/datadog-agent/pkg/util/cloudproviders/cloudfoundry"
@@ -92,7 +93,7 @@ func run(log log.Component, config config.Component, cliParams *command.GlobalPa
 	}
 	pkglog.Infof("Hostname is: %s", hname)
 
-	keysPerDomain, err := pkgconfig.GetMultipleEndpoints()
+	keysPerDomain, err := utils.GetMultipleEndpoints(pkgconfig.Datadog)
 	if err != nil {
 		pkglog.Error("Misconfiguration of agent endpoints: ", err)
 	}
