@@ -21,6 +21,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/serverless/otlp"
 	"github.com/DataDog/datadog-agent/pkg/serverless/tags"
 	"github.com/DataDog/datadog-agent/pkg/serverless/trace"
+	"github.com/DataDog/datadog-agent/pkg/serverless/trace/inferredspan"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
@@ -140,6 +141,10 @@ func StartDaemon(addr string) *Daemon {
 // HandleRuntimeDone should be called when the runtime is done handling the current invocation. It will tell the daemon
 // that the runtime is done, and may also flush telemetry.
 func (d *Daemon) HandleRuntimeDone() {
+	if otlp.IsEnabled() {
+		d.createExecutionSpan()
+	}
+
 	if !d.ShouldFlush(flush.Stopping, time.Now()) {
 		log.Debugf("The flush strategy %s has decided to not flush at moment: %s", d.GetFlushStrategy(), flush.Stopping)
 		d.TellDaemonRuntimeDone()
@@ -159,6 +164,25 @@ func (d *Daemon) HandleRuntimeDone() {
 		d.TriggerFlush(false)
 		d.TellDaemonRuntimeDone()
 	}()
+}
+
+func (d *Daemon) createExecutionSpan() {
+	if d.layer.detected() {
+		log.Error("TRACING LAYER DETECTED")
+	}
+	ec := d.ExecutionContext.GetCurrentState()
+	invocationlifecycle.EndExecutionSpan(
+		&invocationlifecycle.EndExecutionSpanDetails{
+			TraceID:          inferredspan.GenerateSpanId(),
+			SpanID:           inferredspan.GenerateSpanId(),
+			RequestID:        ec.LastRequestID,
+			StartTime:        ec.StartTime,
+			EndTime:          ec.EndTime,
+			SamplingPriority: 1,
+			ProcessTrace:     d.InvocationProcessor.ProcessTrace,
+			TriggerTags:      map[string]string{"_dd.origin": "lambda"},
+			//TriggerMetrics:   map[string]float64,
+		})
 }
 
 // ShouldFlush indicated whether or a flush is needed
