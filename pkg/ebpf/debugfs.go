@@ -12,14 +12,14 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 
-	utilkernel "github.com/DataDog/datadog-agent/pkg/util/kernel"
-	"github.com/DataDog/datadog-agent/pkg/util/log"
 	manager "github.com/DataDog/ebpf-manager"
+	"github.com/DataDog/ebpf-manager/tracefs"
+
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 var myPid int
@@ -39,7 +39,7 @@ var eventRegexp = regexp.MustCompile(`^((?:p|r)_.+?)_([^_]*)_([^_]*)$`)
 
 // GetProbeStats gathers stats about the # of kprobes triggered /missed by reading the kprobe_profile file
 func GetProbeStats() map[string]int64 {
-	return getProbeStats(0, filepath.Join(utilkernel.GetTraceFSMountPath(), "kprobe_profile"))
+	return getProbeStats(0, "kprobe_profile")
 }
 
 func getProbeStats(pid int, profile string) map[string]int64 {
@@ -78,11 +78,7 @@ func getProbeStats(pid int, profile string) map[string]int64 {
 // GetProbeTotals returns the total number of kprobes triggered or missed by reading the kprobe_profile file
 func GetProbeTotals() KprobeStats {
 	stats := KprobeStats{}
-	tracefsPath := utilkernel.GetTraceFSMountPath()
-	if tracefsPath == "" {
-		return stats
-	}
-	m, err := readKprobeProfile(filepath.Join(tracefsPath, "kprobe_profile"))
+	m, err := readKprobeProfile("kprobe_profile")
 	if err != nil {
 		log.Debugf("error retrieving probe stats: %s", err)
 		return stats
@@ -97,7 +93,7 @@ func GetProbeTotals() KprobeStats {
 
 // readKprobeProfile reads a /sys/kernel/[debug/]tracing/kprobe_profile file and returns a map of probe -> stats
 func readKprobeProfile(path string) (map[string]KprobeStats, error) {
-	f, err := os.Open(path)
+	f, err := tracefs.OpenFile(path, os.O_RDONLY, 0)
 	if err != nil {
 		return nil, fmt.Errorf("error opening kprobe profile file at: %s: %w", path, err)
 	}
