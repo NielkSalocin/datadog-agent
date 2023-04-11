@@ -81,7 +81,11 @@ func (r *RCProfileProvider) rcProfilesUpdateCallback(configs map[string]state.Co
 				profile.Tags = append(profile.Tags, "image_tag:latest")
 			}
 
-			selector := cgroupModel.NewWorkloadSelector(imageName, imageTag)
+			selector, err := cgroupModel.NewWorkloadSelector(imageName, imageTag)
+			if err != nil {
+				log.Errorf("selector error %s/%s: %v", imageName, imageTag, err)
+				return
+			}
 
 			log.Tracef("got a new profile for %v : %v", selector, profile)
 
