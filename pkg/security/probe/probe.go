@@ -1195,7 +1195,7 @@ func (p *Probe) GetDebugStats() map[string]interface{} {
 }
 
 // EvaluationSet returns a new evaluation set
-func (p *Probe) EvaluationSet(eventTypeEnabled map[eval.EventType]bool) *rules.EvaluationSet {
+func (p *Probe) EvaluationSet(eventTypeEnabled map[eval.EventType]bool, ruleSetNames []string) *rules.EvaluationSet {
 	ruleOpts, evalOpts := rules.NewEvalOpts(eventTypeEnabled)
 
 	ruleOpts.WithLogger(seclog.DefaultLogger)
@@ -1208,10 +1208,12 @@ func (p *Probe) EvaluationSet(eventTypeEnabled map[eval.EventType]bool) *rules.E
 		}
 	}
 
-	defaultRuleSet := rules.NewRuleSet(NewModel(p), eventCtor, ruleOpts, evalOpts)
-	threatScoreRuleSet := rules.NewRuleSet(NewModel(p), eventCtor, ruleOpts, evalOpts)
+	var ruleSetsToInclude []*rules.RuleSet
+	for _, ruleSetName := range ruleSetNames {
+		ruleSetsToInclude = append(ruleSetsToInclude, rules.NewRuleSet(NewModel(p), eventCtor, ruleOpts.WithName(ruleSetName), evalOpts))
+	}
 
-	return rules.NewEvaluationSet(defaultRuleSet, threatScoreRuleSet)
+	return rules.NewEvaluationSet(ruleSetsToInclude)
 }
 
 // QueuedNetworkDeviceError is used to indicate that the new network device was queued until its namespace handle is
