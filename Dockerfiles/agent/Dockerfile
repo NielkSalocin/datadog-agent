@@ -99,6 +99,13 @@ COPY datadog*.yaml etc/datadog-agent/
 # Installation information
 COPY install_info etc/datadog-agent/
 
+
+######################################
+#  Add delve                         #
+######################################
+FROM golang:1 AS delve-installer
+RUN go install github.com/go-delve/delve/cmd/dlv@latest
+
 ######################################
 #  Actual docker image construction  #
 ######################################
@@ -203,6 +210,9 @@ VOLUME ["/var/run/s6", "/var/log/datadog"]
 # Ensure the glibc doesn't try to call syscalls that may not be supported
 COPY --from=nosys-seccomp /tmp/nosys.so /opt/lib/nosys.so
 ENV LD_PRELOAD=/opt/lib/nosys.so
+
+# Add delve
+COPY --from=delve-installer /go/bin/dlv /usr/bin
 
 # Single entrypoint
 COPY entrypoint.sh /bin/entrypoint.sh
