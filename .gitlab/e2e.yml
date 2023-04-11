@@ -77,7 +77,7 @@ k8s-e2e-cws-dev:
   needs: []
   script:
     - !reference [.k8s-e2e-cws-cspm-init]
-    - inv -e e2e-tests --agent-image=datadog/agent-dev:${CI_COMMIT_REF_SLUG}-py3 --dca-image=datadog/cluster-agent-dev:${CI_COMMIT_REF_SLUG} --argo-workflow=cws
+    - inv -e e2e-tests --agent-image=datadog/agent-dev:master-py3 --dca-image=datadog/cluster-agent-dev:master --argo-workflow=cws
 
 k8s-e2e-cws-main:
   extends: .k8s_e2e_template
