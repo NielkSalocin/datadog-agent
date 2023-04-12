@@ -919,7 +919,7 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 	p.DispatchEvent(event)
 
 	// anomaly detection events
-	if model.IsAnomalyDetectionEvent(event.GetType()) {
+	if p.Config.RuntimeSecurity.AnomalyDetectionSyscallsEnabled && model.IsAnomalyDetectionEvent(event.GetType()) {
 		p.monitor.securityProfileManager.FillProfileContextFromContainerID(event.ProcessContext.ContainerID, &event.SecurityProfileContext)
 		p.DispatchCustomEvent(
 			events.NewCustomRule(events.AnomalyDetectionRuleID),
@@ -1529,6 +1529,10 @@ func NewProbe(config *config.Config, opts Opts) (*Probe, error) {
 		manager.ConstantEditor{
 			Name:  "send_signal",
 			Value: isBPFSendSignalHelperAvailable(p.kernelVersion),
+		},
+		manager.ConstantEditor{
+			Name:  "anomaly_syscalls",
+			Value: utils.BoolTouint64(p.Config.RuntimeSecurity.AnomalyDetectionSyscallsEnabled),
 		},
 	)
 
