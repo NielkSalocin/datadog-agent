@@ -20,9 +20,9 @@ import (
 	serverlessLog "github.com/DataDog/datadog-agent/pkg/serverless/logs"
 	"github.com/DataDog/datadog-agent/pkg/serverless/metrics"
 	"github.com/DataDog/datadog-agent/pkg/serverless/otlp"
+	"github.com/DataDog/datadog-agent/pkg/serverless/random"
 	"github.com/DataDog/datadog-agent/pkg/serverless/tags"
 	"github.com/DataDog/datadog-agent/pkg/serverless/trace"
-	"github.com/DataDog/datadog-agent/pkg/serverless/trace/inferredspan"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
@@ -175,8 +175,8 @@ func (d *Daemon) ensureAwsLambdaSpan(coldStart bool) {
 	ec := d.ExecutionContext.GetCurrentState()
 	invocationlifecycle.EndExecutionSpan(
 		&invocationlifecycle.EndExecutionSpanDetails{
-			TraceID:          inferredspan.GenerateSpanId(),
-			SpanID:           inferredspan.GenerateSpanId(),
+			TraceID:          random.GenerateSpanId(),
+			SpanID:           random.GenerateSpanId(),
 			RequestID:        ec.LastRequestID,
 			StartTime:        ec.StartTime,
 			EndTime:          ec.EndTime,
