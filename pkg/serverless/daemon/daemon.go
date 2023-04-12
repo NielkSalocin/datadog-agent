@@ -7,6 +7,7 @@ package daemon
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -141,10 +142,6 @@ func StartDaemon(addr string) *Daemon {
 // HandleRuntimeDone should be called when the runtime is done handling the current invocation. It will tell the daemon
 // that the runtime is done, and may also flush telemetry.
 func (d *Daemon) HandleRuntimeDone() {
-	if otlp.IsEnabled() {
-		d.createExecutionSpan()
-	}
-
 	if !d.ShouldFlush(flush.Stopping, time.Now()) {
 		log.Debugf("The flush strategy %s has decided to not flush at moment: %s", d.GetFlushStrategy(), flush.Stopping)
 		d.TellDaemonRuntimeDone()
@@ -166,10 +163,15 @@ func (d *Daemon) HandleRuntimeDone() {
 	}()
 }
 
-func (d *Daemon) createExecutionSpan() {
+func (d *Daemon) ensureAwsLambdaSpan(coldStart bool) {
+	if !otlp.IsEnabled() {
+		return
+	}
+
 	if d.layer.detected() {
 		log.Error("TRACING LAYER DETECTED")
 	}
+	log.Debug("Creating aws.lambda span for OTLP invocation")
 	ec := d.ExecutionContext.GetCurrentState()
 	invocationlifecycle.EndExecutionSpan(
 		&invocationlifecycle.EndExecutionSpanDetails{
@@ -180,7 +182,10 @@ func (d *Daemon) createExecutionSpan() {
 			EndTime:          ec.EndTime,
 			SamplingPriority: 1,
 			ProcessTrace:     d.InvocationProcessor.ProcessTrace,
-			TriggerTags:      map[string]string{"_dd.origin": "lambda"},
+			TriggerTags: map[string]string{
+				"_dd.origin": "lambda",
+				"cold_start": fmt.Sprintf("%v", coldStart),
+			},
 			//TriggerMetrics:   map[string]float64,
 		})
 }
@@ -199,7 +204,7 @@ func (d *Daemon) GetFlushStrategy() string {
 func (d *Daemon) SetupLogCollectionHandler(route string, logsChan chan *logConfig.ChannelMessage, logsEnabled bool, enhancedMetricsEnabled bool, initDurationChan chan<- float64) {
 
 	d.logCollector = serverlessLog.NewLambdaLogCollector(logsChan,
-		d.MetricAgent.Demux, d.ExtraTags, logsEnabled, enhancedMetricsEnabled, d.ExecutionContext, d.HandleRuntimeDone, initDurationChan)
+		d.MetricAgent.Demux, d.ExtraTags, logsEnabled, enhancedMetricsEnabled, d.ExecutionContext, d.HandleRuntimeDone, d.ensureAwsLambdaSpan, initDurationChan)
 	server := serverlessLog.NewLambdaLogsAPIServer(d.logCollector.In)
 
 	d.mux.Handle(route, &server)

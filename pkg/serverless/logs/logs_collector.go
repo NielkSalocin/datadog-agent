@@ -53,9 +53,12 @@ type LambdaLogsCollector struct {
 
 	// handleRuntimeDone is the function to be called when a platform.runtimeDone log message is received
 	handleRuntimeDone func()
+
+	// TODO
+	ensureAwsLambdaSpan func(bool)
 }
 
-func NewLambdaLogCollector(out chan<- *logConfig.ChannelMessage, demux aggregator.Demultiplexer, extraTags *Tags, logsEnabled bool, enhancedMetricsEnabled bool, executionContext *executioncontext.ExecutionContext, handleRuntimeDone func(), initDurationChan chan<- float64) *LambdaLogsCollector {
+func NewLambdaLogCollector(out chan<- *logConfig.ChannelMessage, demux aggregator.Demultiplexer, extraTags *Tags, logsEnabled bool, enhancedMetricsEnabled bool, executionContext *executioncontext.ExecutionContext, handleRuntimeDone func(), ensureAwsLambdaSpan func(bool), initDurationChan chan<- float64) *LambdaLogsCollector {
 
 	return &LambdaLogsCollector{
 		In:                     make(chan []LambdaLogAPIMessage, maxBufferedLogs), // Buffered, so we can hold start-up logs before first invocation without blocking
@@ -66,6 +69,7 @@ func NewLambdaLogCollector(out chan<- *logConfig.ChannelMessage, demux aggregato
 		enhancedMetricsEnabled: enhancedMetricsEnabled,
 		executionContext:       executionContext,
 		handleRuntimeDone:      handleRuntimeDone,
+		ensureAwsLambdaSpan:    ensureAwsLambdaSpan,
 		process_once:           &sync.Once{},
 		initDurationChan:       initDurationChan,
 	}
@@ -247,6 +251,7 @@ func (lc *LambdaLogsCollector) processMessage(
 	if message.logType == logTypePlatformRuntimeDone {
 		if lc.lastRequestID == message.objectRecord.requestID {
 			log.Debugf("Received a runtimeDone log message for the current invocation %s", message.objectRecord.requestID)
+			lc.ensureAwsLambdaSpan(lc.lastRequestID == lc.coldstartRequestID)
 			lc.handleRuntimeDone()
 		} else {
 			log.Debugf("Received a runtimeDone log message for the non-current invocation %s, ignoring it", message.objectRecord.requestID)
