@@ -71,3 +71,9 @@ func GenerateSpanId() uint64 {
 	}
 	return Random.Uint64()
 }
+
+// GenerateTraceId creates a secure random trace id in specific scenarios,
+// otherwise return a pseudo random id
+func GenerateTraceId() uint64 {
+	return GenerateSpanId()
+}

@@ -167,7 +167,6 @@ func (d *Daemon) ensureAwsLambdaSpan(coldStart bool) {
 	if !otlp.IsEnabled() {
 		return
 	}
-
 	if d.layer.detected() {
 		log.Error("TRACING LAYER DETECTED")
 	}
@@ -175,7 +174,7 @@ func (d *Daemon) ensureAwsLambdaSpan(coldStart bool) {
 	ec := d.ExecutionContext.GetCurrentState()
 	invocationlifecycle.EndExecutionSpan(
 		&invocationlifecycle.EndExecutionSpanDetails{
-			TraceID:          random.GenerateSpanId(),
+			TraceID:          random.GenerateTraceId(),
 			SpanID:           random.GenerateSpanId(),
 			RequestID:        ec.LastRequestID,
 			StartTime:        ec.StartTime,
@@ -186,7 +185,6 @@ func (d *Daemon) ensureAwsLambdaSpan(coldStart bool) {
 				"_dd.origin": "lambda",
 				"cold_start": fmt.Sprintf("%v", coldStart),
 			},
-			//TriggerMetrics:   map[string]float64,
 		})
 }
 
