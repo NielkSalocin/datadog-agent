@@ -1561,13 +1561,15 @@ func NewProbe(config *config.Config, opts Opts) (*Probe, error) {
 	p.scrubber = procutil.NewDefaultDataScrubber()
 	p.scrubber.AddCustomSensitiveWords(config.Probe.CustomSensitiveWords)
 
-	resolvers, err := resolvers.NewResolvers(config, p.Manager, p.StatsdClient, p.scrubber, p.Erpc)
+	resolversOpts := resolvers.ResolversOpts{
+		PathResolutionEnabled: opts.PathResolutionEnabled,
+	}
+	p.resolvers, err = resolvers.NewResolvers(config, p.Manager, p.StatsdClient, p.scrubber, p.Erpc, resolversOpts)
 	if err != nil {
 		return nil, err
 	}
-	p.resolvers = resolvers
 
-	p.fieldHandlers = &FieldHandlers{resolvers: resolvers}
+	p.fieldHandlers = &FieldHandlers{resolvers: p.resolvers}
 
 	// be sure to zero the probe event before everything else
 	p.zeroEvent()

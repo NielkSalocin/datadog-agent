@@ -54,7 +54,8 @@ const (
 
 // ResolverOpts options of resolver
 type ResolverOpts struct {
-	envsWithValue map[string]bool
+	envsWithValue         map[string]bool
+	pathResolutionEnabled bool
 }
 
 type processCacheEntrySource uint64
@@ -689,11 +690,17 @@ func (p *Resolver) resolveFromCache(pid, tid uint32, inode uint64) *model.Proces
 
 // ResolveNewProcessCacheEntry resolves the context fields of a new process cache entry parsed from kernel data
 func (p *Resolver) ResolveNewProcessCacheEntry(entry *model.ProcessCacheEntry, ctrCtx *model.ContainerContext) error {
-	if _, err := p.SetProcessPath(&entry.FileEvent, &entry.PIDContext, ctrCtx); err != nil {
-		return &spath.ErrPathResolution{Err: fmt.Errorf("failed to resolve exec path: %w", err)}
+	if p.opts.pathResolutionEnabled {
+		if _, err := p.SetProcessPath(&entry.FileEvent, &entry.PIDContext, ctrCtx); err != nil {
+			return &spath.ErrPathResolution{Err: fmt.Errorf("failed to resolve exec path: %w", err)}
+		}
+	} else {
+		// mark it as resolved to avoid abnormal path later in the call flow
+		entry.FileEvent.SetPathnameStr("")
+		entry.FileEvent.SetBasenameStr("")
 	}
 
-	if entry.HasInterpreter() {
+	if p.opts.pathResolutionEnabled && entry.HasInterpreter() {
 		if _, err := p.SetProcessPath(&entry.LinuxBinprm.FileEvent, &entry.PIDContext, ctrCtx); err != nil {
 			return &spath.ErrPathResolution{Err: fmt.Errorf("failed to resolve interpreter path: %w", err)}
 		}
@@ -1236,7 +1243,7 @@ func (p *Resolver) Walk(callback func(entry *model.ProcessCacheEntry)) {
 func NewResolver(manager *manager.Manager, config *config.Config, statsdClient statsd.ClientInterface,
 	scrubber *procutil.DataScrubber, containerResolver *container.Resolver, mountResolver *mount.Resolver,
 	cgroupResolver *cgroup.Resolver, userGroupResolver *usergroup.Resolver, timeResolver *stime.Resolver,
-	pathResolver *spath.Resolver, opts ResolverOpts) (*Resolver, error) {
+	pathResolver *spath.Resolver, opts *ResolverOpts) (*Resolver, error) {
 	argsEnvsCache, err := simplelru.NewLRU[uint32, *argsEnvsCacheEntry](maxParallelArgsEnvs, nil)
 	if err != nil {
 		return nil, err
@@ -1248,7 +1255,7 @@ func NewResolver(manager *manager.Manager, config *config.Config, statsdClient s
 		statsdClient:              statsdClient,
 		scrubber:                  scrubber,
 		entryCache:                make(map[uint32]*model.ProcessCacheEntry),
-		opts:                      opts,
+		opts:                      *opts,
 		argsEnvsCache:             argsEnvsCache,
 		state:                     atomic.NewInt64(Snapshotting),
 		hitsStats:                 map[string]*atomic.Int64{},
@@ -1279,15 +1286,23 @@ func NewResolver(manager *manager.Manager, config *config.Config, statsdClient s
 	return p, nil
 }
 
-// NewResolverOpts returns a new set of process resolver options
-func NewResolverOpts(envsWithValue []string) ResolverOpts {
-	opts := ResolverOpts{
-		envsWithValue: make(map[string]bool, len(envsWithValue)),
-	}
+// WithEnvs specifies envs with value
+func (o *ResolverOpts) WithPathResolution(enabled bool) *ResolverOpts {
+	o.pathResolutionEnabled = enabled
+	return o
+}
 
+// WithEnvs specifies envs with value
+func (o *ResolverOpts) WithEnvsValue(envsWithValue []string) *ResolverOpts {
 	for _, envVar := range envsWithValue {
-		opts.envsWithValue[envVar] = true
+		o.envsWithValue[envVar] = true
 	}
+	return o
+}
 
-	return opts
+// NewResolverOpts returns a new set of process resolver options
+func NewResolverOpts() *ResolverOpts {
+	return &ResolverOpts{
+		envsWithValue: make(map[string]bool),
+	}
 }
