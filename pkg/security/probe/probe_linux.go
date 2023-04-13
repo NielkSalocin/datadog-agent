@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
+	easyjson "github.com/mailru/easyjson"
 	"github.com/moby/sys/mountinfo"
 	"golang.org/x/exp/slices"
 	"golang.org/x/sys/unix"
@@ -1286,16 +1287,19 @@ func NewProbe(config *config.Config, opts Opts) (*Probe, error) {
 	p := &Probe{
 		Opts:                 opts,
 		Config:               config,
-		approvers:            make(map[eval.EventType]kfilters.ActiveApprovers),
-		managerOptions:       ebpf.NewDefaultOptions(),
 		ctx:                  ctx,
 		cancelFnc:            cancel,
-		Erpc:                 nerpc,
-		erpcRequest:          &erpc.ERPCRequest{},
 		StatsdClient:         opts.StatsdClient,
 		discarderRateLimiter: rate.NewLimiter(rate.Every(time.Second/5), 100),
-		isRuntimeDiscarded:   !opts.DontDiscardRuntime,
-		event:                &model.Event{},
+
+		event: &model.Event{},
+		PlatformProbe: PlatformProbe{
+			approvers:          make(map[eval.EventType]kfilters.ActiveApprovers),
+			managerOptions:     ebpf.NewDefaultOptions(),
+			Erpc:               nerpc,
+			erpcRequest:        &erpc.ERPCRequest{},
+			isRuntimeDiscarded: !opts.DontDiscardRuntime,
+		},
 	}
 
 	if err := p.detectKernelVersion(); err != nil {
